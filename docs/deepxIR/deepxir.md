@@ -49,7 +49,7 @@ deepxir ir_name(ro_p1:type1, ro_param2:type2, ...) -> (w_p1:type3, w_p2:type4, .
     operation_name(ro_p2, ro_p2) -> w_p2
 }
 ```
-- `deepxir` 为关键字，也可使用 `function`、`func` 等。  
+- `deepxir` 为关键字，也可使用 `function`、`func`、`def` 等,作用完全相同的。  
 - 参数遵循“左读右写”规则（无返回值；通过写入参数实现输出）。  
 - 参数类型支持：`tensor`、`list<tensor>`、基础类型，以及基础类型的 list。
 
