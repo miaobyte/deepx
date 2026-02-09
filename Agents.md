@@ -15,6 +15,3 @@
 
 
 贴近pytorch的接口风格，不要增加任何注释，我会手动添加注释
-
-关于doc目录
-采用Sphinx构建,使用reStructuredText格式

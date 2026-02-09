@@ -8,7 +8,6 @@
 #include <vector>
 namespace deepx
 {
-
     // 将Precision改为位图形式
     enum class Precision : uint16_t
     {
