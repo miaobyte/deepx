@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "stdutil/fs.hpp"
+#include "deepx/dtype/precision.hpp"
 #include "deepx/dtype.hpp"
 namespace deepx
 {

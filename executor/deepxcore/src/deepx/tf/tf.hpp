@@ -11,7 +11,7 @@
 
 #include "deepx/tensor.hpp"
 #include "deepx/mem/mem.hpp"
-#include "deepx/dtype.hpp"
+#include "deepx/dtype/typedef.hpp"
 
 #include "stdutil/error.hpp"
 #include "stdutil/num.hpp"
@@ -152,7 +152,7 @@ namespace deepx::tf
             std::string item;
             while (std::getline(ss, item, ' '))
             {
-                result.push_back(to<T>(item));
+                result.push_back(item);
             }
             return result;
         }
