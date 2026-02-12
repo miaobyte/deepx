@@ -37,13 +37,13 @@ namespace deepx::tf
         }
 
         // 提取参数和返回值类型
-        vector<TypeDef> arg_types;
+        vector<TypeSpec> arg_types;
         for (const auto &arg : other.args)
         {
             arg_types.push_back(arg.dtype);
         }
 
-        vector<TypeDef> return_types;
+        vector<TypeSpec> return_types;
         for (const auto &ret : other.returns)
         {
             return_types.push_back(ret.dtype);
@@ -63,14 +63,14 @@ namespace deepx::tf
                 {
                     if (i > 0)
                         cerr << ", ";
-                    cerr << dtype_str(registered_tf->args[i].dtype);
+                    cerr <<  registered_tf->args[i].dtype.to_string();
                 }
                 cerr << ")->(";
                 for (size_t i = 0; i < registered_tf->returns.size(); i++)
                 {
                     if (i > 0)
                         cerr << ", ";
-                    cerr << dtype_str(registered_tf->returns[i].dtype);
+                    cerr <<  registered_tf->returns[i].dtype.to_string();
                 }
                 cerr << ")" << endl;
             }

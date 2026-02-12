@@ -8,8 +8,8 @@ namespace deepx::tf
 
     struct TypeSignature
     {
-        vector<TypeDef> args;
-        vector<TypeDef> returns;
+        vector<TypeSpec> args;
+        vector<TypeSpec> returns;
 
         bool is_compatible(const TypeSignature &other) const
         {
@@ -18,7 +18,7 @@ namespace deepx::tf
         }
 
     private:
-        static bool is_compatible_types(const vector<TypeDef> &def, const vector<TypeDef> &other)
+        static bool is_compatible_types(const vector<TypeSpec> &def, const vector<TypeSpec> &other)
         {
             if (def.size() != other.size())
                 return false;
@@ -36,20 +36,20 @@ namespace deepx::tf
         vector<std::shared_ptr<TF>> tfs;
 
         // 获取匹配的TF实现
-        std::shared_ptr<TF> get_matching_tf(const vector<TypeDef> &arg_types,
-                                            const vector<TypeDef> &return_types) const
+        std::shared_ptr<TF> get_matching_tf(const vector<TypeSpec> &arg_types,
+                            const vector<TypeSpec> &return_types) const
         {
             TypeSignature target{arg_types, return_types};
 
             for (const auto &tf : tfs)
             {
-                vector<TypeDef> tf_arg_types;
+                vector<TypeSpec> tf_arg_types;
                 for (const auto &arg : tf->args)
                 {
                     tf_arg_types.push_back(arg.dtype);
                 }
 
-                vector<TypeDef> tf_return_types;
+                vector<TypeSpec> tf_return_types;
                 for (const auto &ret : tf->returns)
                 {
                     tf_return_types.push_back(ret.dtype);

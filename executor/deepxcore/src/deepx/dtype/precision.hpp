@@ -89,24 +89,24 @@ namespace deepx
         }
     }
 
-     // 修改precision函数以匹配新的命名格式
-    inline Precision precision(const std::string &str)
+    // 修改precision函数以匹配新的命名格式
+    inline Precision precision_from_string(const std::string &str)
     {
         if (str == "any")
             return Precision::Any;
-        else if (str == "float64")
+        else if (str == "float64" || str == "f64")
             return Precision::Float64;
-        else if (str == "float32")
+        else if (str == "float32" || str == "f32")
             return Precision::Float32;
-        else if (str == "float16")
+        else if (str == "float16" || str == "f16")
             return Precision::Float16;
-        else if (str == "bfloat16")
+        else if (str == "bfloat16" || str == "bf16")
             return Precision::BFloat16;
-        else if (str == "float8e5m2")
+        else if (str == "float8e5m2" || str == "f8e5m2")
             return Precision::Float8E5M2;
-        else if (str == "float8e4m3")
+        else if (str == "float8e4m3" || str == "f8e4m3")
             return Precision::Float8E4M3;
-        else if (str == "float4e2m1")
+        else if (str == "float4e2m1" || str == "f4e2m1")
             return Precision::Float4E2M1;
 
         // 添加组合类型支持
@@ -117,15 +117,15 @@ namespace deepx
         else if (str == "float8")
             return Precision::Float8;
 
-        else if (str == "int64")
+        else if (str == "int64" || str == "i64")
             return Precision::Int64;
-        else if (str == "int32")
+        else if (str == "int32" || str == "i32")
             return Precision::Int32;
-        else if (str == "int16")
+        else if (str == "int16" || str == "i16")
             return Precision::Int16;
-        else if (str == "int8")
+        else if (str == "int8" || str == "i8")
             return Precision::Int8;
-        else if (str == "int4")
+        else if (str == "int4" || str == "i4")
             return Precision::Int4;
 
         else if (str == "bool")
@@ -138,7 +138,7 @@ namespace deepx
 
 
     // 修改precision_str函数以使用标准命名格式
-    inline std::string precision_str(Precision p)
+    inline std::string precision_to_string(Precision p)
     {
         if (p == Precision::Any)
             return "any";
@@ -147,29 +147,29 @@ namespace deepx
         uint16_t value = static_cast<uint16_t>(p);
 
         if (value & static_cast<uint16_t>(Precision::Float64))
-            types.push_back("float64");
+            types.push_back("f64");
         if (value & static_cast<uint16_t>(Precision::Float32))
-            types.push_back("float32");
+            types.push_back("f32");
         if (value & static_cast<uint16_t>(Precision::Float16))
-            types.push_back("float16"); // 改回float16
+            types.push_back("f16");
         if (value & static_cast<uint16_t>(Precision::BFloat16))
-            types.push_back("bfloat16"); // 改回bfloat16
+            types.push_back("bf16");
         if (value & static_cast<uint16_t>(Precision::Float8E5M2))
-            types.push_back("float8e5m2");
+            types.push_back("f8e5m2");
         if (value & static_cast<uint16_t>(Precision::Float8E4M3))
-            types.push_back("float8e4m3");
+            types.push_back("f8e4m3");
         if (value & static_cast<uint16_t>(Precision::Float4E2M1))
-            types.push_back("float4e2m1");
+            types.push_back("f4e2m1");
         if (value & static_cast<uint16_t>(Precision::Int64))
-            types.push_back("int64");
+            types.push_back("i64");
         if (value & static_cast<uint16_t>(Precision::Int32))
-            types.push_back("int32");
+            types.push_back("i32");
         if (value & static_cast<uint16_t>(Precision::Int16))
-            types.push_back("int16");
+            types.push_back("i16");
         if (value & static_cast<uint16_t>(Precision::Int8))
-            types.push_back("int8");
+            types.push_back("i8");
         if (value & static_cast<uint16_t>(Precision::Int4))
-            types.push_back("int4");
+            types.push_back("i4");
         if (value & static_cast<uint16_t>(Precision::Bool))
             types.push_back("bool");
         if (value & static_cast<uint16_t>(Precision::String))

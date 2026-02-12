@@ -9,7 +9,7 @@ namespace deepx
 {
     using namespace std;
 
-      enum class DataCategory : uint8_t
+    enum class DataCategory : uint8_t
     {
         Unknown = 0,
         Var = 1 << 0,        // 变量类型
@@ -33,7 +33,7 @@ namespace deepx
     }
 
     // 修改base_category_str函数以支持组合类型
-    inline std::string base_category_str(DataCategory category)
+    inline std::string base_category_to_string(DataCategory category)
     {
         std::vector<std::string> types;
         uint8_t value = static_cast<uint8_t>(category);
@@ -59,7 +59,7 @@ namespace deepx
     }
 
     // 修改base_category函数以支持组合类型
-    inline DataCategory base_category(const std::string &str)
+    inline DataCategory base_category_from_string(const std::string &str)
     {
         if (str.find('|') == std::string::npos)
         {
@@ -83,12 +83,12 @@ namespace deepx
         while ((pos = str.find('|', start)) != std::string::npos)
         {
             std::string type = str.substr(start, pos - start);
-            result = result | base_category(type);
+            result = result | base_category_from_string(type);
             start = pos + 1;
         }
 
         // 处理最后一个类型
-        result = result | base_category(str.substr(start));
+        result = result | base_category_from_string(str.substr(start));
         return result;
     }
 }

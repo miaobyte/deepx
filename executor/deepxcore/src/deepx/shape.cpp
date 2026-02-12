@@ -92,7 +92,7 @@ namespace deepx
 
     std::string Shape::toYaml() const{
         YAML::Node node;
-        node["dtype"] = precision_str(dtype);
+        node["dtype"] = precision_to_string(dtype);
         node["dim"] = dim();
         node["shape"] = shape;
         node["stride"] = strides;
@@ -101,7 +101,7 @@ namespace deepx
     }
     void Shape::fromYaml(const std::string &yaml){
         YAML::Node node = YAML::Load(yaml);
-        dtype = precision(node["dtype"].as<std::string>());
+        dtype = precision_from_string(node["dtype"].as<std::string>());
         shape = node["shape"].as<std::vector<int>>();
         strides=node["stride"].as<std::vector<int>>();
         size=node["size"].as<int>();

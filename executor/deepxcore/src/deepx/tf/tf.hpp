@@ -11,7 +11,7 @@
 
 #include "deepx/tensor.hpp"
 #include "deepx/mem/mem.hpp"
-#include "deepx/dtype/typedef.hpp"
+#include "deepx/dtype/typespec.hpp"
 
 #include "stdutil/error.hpp"
 #include "stdutil/num.hpp"
@@ -24,11 +24,11 @@ namespace deepx::tf
 
     struct Param
     {
-        TypeDef dtype;
+        TypeSpec dtype;
         string textvalue;
 
         Param(const string &textvalue = "", const DataCategory &dt = DataCategory::Unknown, const Precision &prec = Precision::Any)
-            : textvalue(textvalue), dtype(make_dtype(dt, prec)) {}
+            : textvalue(textvalue), dtype(TypeSpec(dt, prec)) {}
 
         void parse(const string &param);
         string to_string() const;

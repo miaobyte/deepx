@@ -12,9 +12,7 @@
 
 namespace deepx
 {
-
-    // 删除DataCategory，直接在DataType中使用BaseCategory
-    union TypeDef
+    union TypeSpec
     {
         struct
         {
@@ -25,27 +23,27 @@ namespace deepx
         uint32_t value; // 整体访问
 
         // 构造函数
-        constexpr TypeDef() : value(0) {}
+        constexpr TypeSpec() : value(0) {}
 
         // 修改构造函数，使用初始化列表
-        constexpr TypeDef(DataCategory c, Precision p) : value(0)
+        constexpr TypeSpec(DataCategory c, Precision p) : value(0)
         {
             parts.category = c;
             parts.precision = p;
         }
 
-        bool operator==(const TypeDef &other) const
+        bool operator==(const TypeSpec &other) const
         {
             return value == other.value;
         }
 
-        bool operator!=(const TypeDef &other) const
+        bool operator!=(const TypeSpec &other) const
         {
             return value != other.value;
         }
 
         // 判断other是否在当前类型的精度范围内
-        bool match(const TypeDef &other) const
+        bool match(const TypeSpec &other) const
         {
             // 类型必须相同
             uint8_t this_cat = static_cast<uint8_t>(parts.category);
@@ -70,42 +68,38 @@ namespace deepx
         {
             return parts.precision;
         }
-    };
-
-    // 辅助函数用于创建DataType
-    constexpr TypeDef make_dtype(DataCategory category, Precision precision)
-    {
-        return TypeDef(category, precision);
-    }
-
-     // 修改dtype_str函数
-    inline std::string dtype_str(const TypeDef &dtype)
-    {
-        return base_category_str(dtype.parts.category) +
-               "<" + precision_str(dtype.parts.precision) + ">";
-    }
-
-      // 修改dtype函数，处理无精度标记的情况
-    inline TypeDef dtype(const std::string &str)
-    {
-        size_t pos_start = str.find('<');
-        size_t pos_end = str.find('>');
-
-        if (pos_start == std::string::npos || pos_end == std::string::npos)
+        string to_string() const
         {
-            // 无精度标记时，使用Any作为默认精度
-            return make_dtype(base_category(str), Precision::Any);
+            return  base_category_to_string(parts.category) +
+               "<" + precision_to_string(parts.precision) + ">";
         }
+        void from_string(const string &str)
+        {
+            size_t pos_start = str.find('<');
+            size_t pos_end = str.find('>');
 
-        std::string category_str = str.substr(0, pos_start);
-        std::string precision_str = str.substr(pos_start + 1, pos_end - pos_start - 1);
+            if (pos_start == std::string::npos || pos_end == std::string::npos)
+            {
+                parts.category = base_category_from_string(str);
+                parts.precision = Precision::Any;
+                return;
+            }
 
-        return make_dtype(
-            base_category(category_str),
-            precision(precision_str));
+            std::string category_str = str.substr(0, pos_start);
+            std::string precision_str = str.substr(pos_start + 1, pos_end - pos_start - 1);
+
+            parts.category = base_category_from_string(category_str);
+            parts.precision = precision_from_string(precision_str);
+        }
+    };
+    
+    inline TypeSpec typespec_from_string(const std::string &str){
+        TypeSpec ts;
+        ts.from_string(str);
+        return ts;
     }
-
-    inline TypeDef autodtype(const std::string &param)
+    
+    inline TypeSpec autodtype(const std::string &param)
     {
         std::string type;
         std::string textvalue;
@@ -163,7 +157,7 @@ namespace deepx
         // 设置结果
         if (!type.empty())
         {
-            return dtype(type);
+            return typespec_from_string(type);
         }
         else
         {
@@ -174,25 +168,25 @@ namespace deepx
                 {
                     if (is_integer(vectorvalues[0]))
                     {
-                        return make_dtype(DataCategory::Vector, Precision::Int32);
+                        return TypeSpec(DataCategory::Vector, Precision::Int32);
                     }
                     else if (is_float(vectorvalues[0]))
                     {
-                        return make_dtype(DataCategory::Vector, Precision::Float64);
+                        return TypeSpec(DataCategory::Vector, Precision::Float64);
                     }
                     else
                     {
-                        return make_dtype(DataCategory::ListTensor, Precision::Any);
+                        return TypeSpec(DataCategory::ListTensor, Precision::Any);
                     }
                 }
                 else
                 {
-                    return make_dtype(DataCategory::Vector, Precision::Any);
+                    return TypeSpec(DataCategory::Vector, Precision::Any);
                 }
             }
             else
             {
-                return make_dtype(DataCategory::Var | DataCategory::Tensor, Precision::Any);
+                return TypeSpec(DataCategory::Var | DataCategory::Tensor, Precision::Any);
             }
         }
     }

@@ -24,7 +24,7 @@ namespace deepx::tf
         int run(shared_ptr<MemBase> mem, string &error) override
         {
             string name = this->returns[0].textvalue;
-            TypeDef type = this->returns[0].dtype;
+            TypeSpec type = this->returns[0].dtype;
             if (uint8_t(type.category() & DataCategory::Tensor) == 0)
             {
                 error = "newtensor: return type must include tensor category";

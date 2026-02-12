@@ -28,18 +28,18 @@ namespace deepx::tf
         }
         if (!type.empty())
         {
-            this->dtype = deepx::dtype(type);
+            this->dtype.from_string(type);
             this->textvalue = textvalue;
         }
         else
         {
-            this->dtype = deepx::dtype(textvalue);
+            this->dtype.from_string(textvalue);
             this->textvalue = textvalue;
         }
     }
     string Param::to_string() const
     {
-        return dtype_str(dtype) + ":" + textvalue;
+        return  dtype.to_string() + ":" + textvalue;
     }
     string TFMetadata::to_string() const
     {
@@ -192,7 +192,7 @@ namespace deepx::tf
     }
 
     // 解析单个值为具体C++类型
-    any parse_single_value(const string &value_str, const TypeDef &dtype)
+    any parse_single_value(const string &value_str, const TypeSpec &dtype)
     {
         // 如果是字符串类型，直接返回
         if (dtype.precision() == Precision::String)
@@ -261,9 +261,7 @@ namespace deepx::tf
         }
         catch (const std::exception &e)
         {
-            throw runtime_error("Failed to parse value '" + value_str + "' as " +
-                                base_category_str(dtype.category()) + "<" +
-                                precision_str(dtype.precision()) + ">");
+            throw runtime_error("Failed to parse value '" + value_str + "' as " +dtype.to_string());
         }
 
         return value_str; // 默认作为字符串处理
@@ -401,8 +399,8 @@ namespace deepx::tf
         for (size_t i = 0; i < args.size(); ++i)
         {
             // 当前TF的类型可能包含多个选项
-            TypeDef dtype = args[i].dtype;
-            TypeDef other_dtype = other.args[i].dtype;
+            TypeSpec dtype = args[i].dtype;
+            TypeSpec other_dtype = other.args[i].dtype;
             // TODO
         }
 
