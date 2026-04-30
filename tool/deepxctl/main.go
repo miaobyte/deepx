@@ -1,63 +1,65 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/array2d/deepx/tool/deepxctl/cmd/tensor"
+	"deepx/tool/deepxctl/cmd"
+	"deepx/tool/deepxctl/cmd/tensor"
 )
 
-var version = "0.1.0"
+var version = "0.2.0"
 
 func printUsage() {
 	execName := filepath.Base(os.Args[0])
-	fmt.Printf("用法: %s [命令] [参数]\n\n", execName)
-	fmt.Println("可用命令:")
-	fmt.Println("  tensor    张量操作相关命令")
-	fmt.Println("  version   显示版本信息")
-	fmt.Println("  help      显示帮助信息")
-	fmt.Println("\n使用 '%s help [命令]' 获取命令的详细信息", execName)
+	fmt.Printf("Usage: %s [command] [arguments]\n\n", execName)
+	fmt.Println("Commands:")
+	fmt.Println("  boot       Start services (Redis → build → launch op-metal + heap-metal + VM)")
+	fmt.Println("  run        Run a .dx file (requires prior boot)")
+	fmt.Println("  shutdown   Stop all booted services")
+	fmt.Println("  tensor     Tensor file operations (print)")
+	fmt.Println("  version    Show version")
+	fmt.Println("  help       Show this help")
+	fmt.Println()
+	fmt.Println("Typical workflow:")
+	fmt.Printf("  %s boot                     # start services once\n", execName)
+	fmt.Printf("  %s run file.dx              # execute .dx (repeatable)\n", execName)
+	fmt.Printf("  %s shutdown                 # stop services when done\n", execName)
+	fmt.Println()
+	fmt.Printf("Run '%s [command] --help' for per-command flags.\n", execName)
 }
 
 func main() {
-	flag.Usage = printUsage
-
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(0)
 	}
 
-	// 获取子命令
-	cmd := os.Args[1]
+	subcmd := os.Args[1]
 
-	// 根据子命令执行相应操作
-	switch cmd {
+	switch subcmd {
+	case "boot":
+		cmd.Boot(os.Args[2:])
+
+	case "run":
+		cmd.Run(os.Args[2:])
+
+	case "shutdown":
+		cmd.Shutdown()
+
 	case "tensor":
-		// 移除子命令，让子命令处理剩余的参数
-		os.Args = os.Args[2:]
+		os.Args = os.Args[1:]
 		tensor.Execute()
 
 	case "version":
-		fmt.Printf("deepxctl 版本 %s\n", version)
+		fmt.Printf("deepxctl version %s\n", version)
 
-	case "help":
-		if len(os.Args) > 2 {
-			helpCmd := os.Args[2]
-			switch helpCmd {
-			case "tensor":
-				tensor.PrintUsage()
-			default:
-				fmt.Printf("未知命令: %s\n", helpCmd)
-				printUsage()
-			}
-		} else {
-			printUsage()
-		}
+	case "help", "-h", "--help":
+		printUsage()
 
 	default:
-		fmt.Printf("未知命令: %s\n", cmd)
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", subcmd)
 		printUsage()
 		os.Exit(1)
 	}

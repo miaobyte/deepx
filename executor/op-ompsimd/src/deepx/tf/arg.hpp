@@ -33,7 +33,7 @@ namespace deepx::tf
                 error = "argset(int32) must have 1 argument";
                 return 1;
             }
-            TypeDef datatype = this->returns[0].dtype;
+            TypeSpec datatype = this->returns[0].dtype;
             if (uint8_t(datatype.category() & DataCategory::Var) == 0)
             {
                 error = "datatype must be var";
@@ -89,7 +89,7 @@ namespace deepx::tf
         int run(shared_ptr<MemBase> mem, string &error) override
         {
             string name = this->returns[0].textvalue;
-            TypeDef datatype = this->returns[0].dtype;
+            TypeSpec datatype = this->returns[0].dtype;
             if (uint8_t(datatype.category() & DataCategory::Vector) == 0)
             {
                 error = "datatype must be vector";
