@@ -109,7 +109,7 @@ func shutdown() error {
 	// Wait for plats heartbeats to show "stopped"
 	logx.Debug("waiting for plats heartbeat stopped")
 	if !waitHeartbeats(rdb, plats, 10*time.Second) {
-		logx.Warn("plats heartbeat wait timeout")
+		logx.Debug("plats heartbeat wait timeout")
 	} else {
 		logx.Debug("plats heartbeat stopped confirmed")
 	}
@@ -135,7 +135,7 @@ func shutdown() error {
 
 		logx.Debug("waiting for VM heartbeat stopped")
 		if !waitHeartbeats(rdb, vmPlats, 10*time.Second) {
-			logx.Warn("plats heartbeat wait timeout")
+			logx.Debug("plats heartbeat wait timeout")
 		} else {
 			logx.Debug("plats heartbeat stopped confirmed")
 		}
@@ -183,6 +183,7 @@ func shutdown() error {
 		{"op-metal", state.OpMetal},
 		{"heap-metal", state.HeapMetal},
 		{"vm", state.VM},
+		{"dashboard", state.Dashboard},
 	} {
 		if pidAlive(r.pid) {
 			needForce = true
@@ -199,6 +200,7 @@ func shutdown() error {
 			{"op-metal", state.OpMetal},
 			{"heap-metal", state.HeapMetal},
 			{"vm", state.VM},
+			{"dashboard", state.Dashboard},
 		} {
 			if pidAlive(r.pid) {
 				logx.Debug("force SIGKILL", "name", r.name, "pid", r.pid)
@@ -272,6 +274,7 @@ func forceKill(state *BootState) error {
 		"op-metal":   state.OpMetal,
 		"heap-metal": state.HeapMetal,
 		"vm":         state.VM,
+		"dashboard":  state.Dashboard,
 	}
 
 	for name, pid := range pids {

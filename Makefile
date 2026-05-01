@@ -140,11 +140,14 @@ build-deepxctl:
 build-dashboard:
 	@echo "=== Building dashboard ==="
 	@command -v go >/dev/null 2>&1 || (echo "ERROR: go not found in PATH (GOROOT=$(GOROOT))" && exit 1)
+	mkdir -p $(DASHBOARD_OUT)
+	@echo "Building dashboard frontend..."
+	cd $(DASHBOARD_DIR)/frontend && npm install --no-bin-links && node ./node_modules/vite/bin/vite.js build --outDir $(DASHBOARD_OUT) --emptyOutDir false
+	@echo "  → $(DASHBOARD_OUT)/index.html (+ assets)"
 	@echo "Go version: $$(go version)"
 	cd $(DASHBOARD_DIR) && go mod tidy
-	mkdir -p $(DASHBOARD_OUT)
-	cd $(DASHBOARD_DIR) && go build -ldflags="-s -w" -o $(DASHBOARD_OUT)/dashboard .
-	@echo "  → $(DASHBOARD_OUT)/dashboard"
+	cd $(DASHBOARD_DIR) && go build -ldflags="-s -w" -o $(DASHBOARD_OUT)/dash-server .
+	@echo "  → $(DASHBOARD_OUT)/dash-server"
 
 # ═══════════════════════════════════════════════════════════════
 # Build — C++ Projects

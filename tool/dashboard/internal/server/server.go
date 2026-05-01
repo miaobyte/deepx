@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,31 +14,40 @@ import (
 )
 
 type Server struct {
-	rdb       *goredis.Client
-	loaderBin string
-	redisAddr string
+	rdb        *goredis.Client
+	loaderBin  string
+	redisAddr  string
 	listenAddr string
-	statusHub *handler.StatusHub
+	distDir    string // frontend build output directory
+	statusHub  *handler.StatusHub
 }
 
 func New(rdb *goredis.Client, loaderBin, redisAddr, listenAddr string) *Server {
+	distDir := findDistDir()
+	if distDir == "" {
+		log.Fatalf("FATAL: frontend not built — index.html not found.\n" +
+			"  Expected next to binary: %s/index.html\n" +
+			"  Or at: frontend/dist/index.html\n" +
+			"  Run: make build-dashboard",
+			exeDir())
+	}
+
 	s := &Server{
 		rdb:        rdb,
 		loaderBin:  loaderBin,
 		redisAddr:  redisAddr,
 		listenAddr: listenAddr,
+		distDir:    distDir,
 		statusHub:  handler.NewStatusHub(rdb),
 	}
 	go s.statusHub.Run()
 	handler.RegisterTerminal(rdb, listenAddr)
+	log.Printf("[server] frontend loaded from %s", distDir)
 	return s
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-
-	// React dev proxy: check if dist exists, otherwise serve nothing for /api routes
-	distDir := filepath.Join("frontend", "dist")
 
 	// API routes
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
@@ -91,19 +101,17 @@ func (s *Server) Handler() http.Handler {
 		handler.Run(s.loaderBin, s.redisAddr, w, r)
 	})
 
-	// Static files (React build) or SPA fallback
-	fs := http.FileServer(http.Dir(distDir))
+	// Static files (React build) + SPA fallback
+	fs := http.FileServer(http.Dir(s.distDir))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// API and SSE paths handled above
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
 			return
 		}
 
-		// Try to serve static file
-		path := filepath.Join(distDir, r.URL.Path)
+		path := filepath.Join(s.distDir, r.URL.Path)
 		if r.URL.Path == "/" {
-			path = filepath.Join(distDir, "index.html")
+			path = filepath.Join(s.distDir, "index.html")
 		}
 
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
@@ -112,10 +120,47 @@ func (s *Server) Handler() http.Handler {
 		}
 
 		// SPA fallback: serve index.html for all non-file routes
-		http.ServeFile(w, r, filepath.Join(distDir, "index.html"))
+		http.ServeFile(w, r, filepath.Join(s.distDir, "index.html"))
 	})
 
 	return withCORS(mux)
+}
+
+// ── distDir resolution ──
+
+// findDistDir locates the React frontend build output.
+//
+//	Deployment: dash-server + index.html in same dir → os.Executable()
+//	Development: go run from tool/dashboard/ → CWD-relative fallback
+//
+// Returns "" if index.html is not found anywhere (caller must fatal).
+func findDistDir() string {
+	// 1. Deployment: look next to the binary
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		if _, err := os.Stat(filepath.Join(dir, "index.html")); err == nil {
+			return dir
+		}
+	}
+	// 2. Development: CWD-relative paths
+	for _, d := range []string{
+		filepath.Join("frontend", "dist"),
+		filepath.Join("tool", "dashboard", "frontend", "dist"),
+	} {
+		if _, err := os.Stat(filepath.Join(d, "index.html")); err == nil {
+			return d
+		}
+	}
+	return ""
+}
+
+// exeDir returns the directory of the running binary, or "?" if unknown.
+func exeDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "?"
+	}
+	return filepath.Dir(exe)
 }
 
 func writeJSON(w http.ResponseWriter, data interface{}, err error) {

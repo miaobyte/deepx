@@ -141,6 +141,7 @@ func run(flags RunFlags) error {
 		"op-plat":   "/sys/op-plat/exop-metal:0",
 		"heap-plat": "/sys/heap-plat/heap-metal:0",
 		"vm":        "/sys/vm/0",
+		"dashboard": "/sys/term/dashboard",
 	}
 	for name, key := range services {
 		if err := redis.WaitForInstance(rdb, key, 5*time.Second); err != nil {

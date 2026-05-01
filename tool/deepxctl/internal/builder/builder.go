@@ -26,6 +26,7 @@ var (
 	HeapMetal = "/tmp/deepx/heap-metal/deepx-heap-metal"
 	VM        = "/tmp/deepx/vm/vm"
 	Loader    = "/tmp/deepx/vm/loader"
+	Dashboard = "/tmp/deepx/dashboard/dash-server"
 )
 
 // Script paths relative to repo root.
@@ -64,6 +65,9 @@ func Missing() []string {
 	}
 	if !binaryExists(Loader) {
 		missing = append(missing, "loader")
+	}
+	if !binaryExists(Dashboard) {
+		missing = append(missing, "dashboard")
 	}
 	return missing
 }
@@ -105,6 +109,24 @@ func All(repoRoot string, force bool) error {
 	// loader is built as part of vm build.sh
 	if !binaryExists(Loader) {
 		return fmt.Errorf("loader binary not found at %s (should be built by vm/build.sh)", Loader)
+	}
+
+	// Dashboard — delegate to Makefile which builds both Go binary + frontend
+	if !force && binaryExists(Dashboard) {
+		logx.Debug("binary exists, skipping build", "component", "dashboard")
+	} else {
+		logx.Debug("building component", "name", "dashboard")
+		cmd := exec.Command("make", "build-dashboard")
+		cmd.Dir = repoRoot
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("build dashboard failed: %w", err)
+		}
+		if !binaryExists(Dashboard) {
+			return fmt.Errorf("build dashboard succeeded but binary not found at %s", Dashboard)
+		}
+		logx.Debug("build complete", "name", "dashboard", "binary", Dashboard)
 	}
 
 	return nil

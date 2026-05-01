@@ -616,6 +616,60 @@ select.input-sm {
   font-family: var(--font-mono);
 }
 
+/* ═══════════════ Operator Registry ═══════════════ */
+
+.stat-row.clickable {
+  cursor: pointer;
+}
+.stat-row.clickable:hover {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius);
+  margin: 0 -6px;
+  padding: 2px 6px;
+}
+
+.op-label {
+  font-size: 11px;
+  color: var(--accent-purple);
+}
+
+.op-list {
+  padding: 4px 0 8px 14px;
+}
+
+.op-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.op-tag {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.op-loading {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.op-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.op-error {
+  font-size: 11px;
+  color: var(--accent-red);
+}
+
 /* ═══════════════ Syntax Highlighting ═══════════════ */
 
 .tk-keyword   { color: #ff7b72; font-weight: 600; }

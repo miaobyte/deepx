@@ -51,14 +51,20 @@ function formatMs(ms: number): string {
 function OpRow({ backend, count }: { backend: string; count: number }) {
   const [expanded, setExpanded] = useState(false);
   const [ops, setOps] = useState<OpList | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleToggle = async () => {
     if (expanded) { setExpanded(false); return; }
     setExpanded(true);
-    if (!ops) {
+    if (!ops && !error) {
       setLoading(true);
-      try { const data = await fetchOps(backend); setOps(data); } catch {}
+      try {
+        const data = await fetchOps(backend);
+        setOps(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
       setLoading(false);
     }
   };
@@ -73,6 +79,8 @@ function OpRow({ backend, count }: { backend: string; count: number }) {
         <div className="op-list">
           {loading ? (
             <span className="op-loading">loading...</span>
+          ) : error ? (
+            <span className="op-error">{error}</span>
           ) : ops && ops.ops.length > 0 ? (
             <div className="op-tags">
               {ops.ops.map((op) => (
