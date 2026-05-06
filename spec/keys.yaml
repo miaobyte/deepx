@@ -1,0 +1,363 @@
+# ============================================================================
+# deepx Redis Key 规范 v4 — 最小保留路径
+# ============================================================================
+#
+# 设计原则:
+#   系统只保留 4 个顶层命名空间，其余根路径全部留给用户自由使用。
+#   (类比 Linux: /proc /sys /usr /etc 是系统保留，/home /opt /mnt 是用户空间)
+#
+#   保留路径:
+#     /func         函数定义 (内置 + extended-op 后端)
+#     /usr          用户空间 (用户函数源码)
+#     /sys          系统内部 (守护进程 + IPC + 配置 + 心跳 + 后端注册)
+#     /metathread   元线程运行时执行栈
+#
+#   用户自由路径 (根 / 下除上述 4 个前缀外全部可用):
+#     /models/...       模型权重
+#     /datasets/...     数据集
+#     /checkpoints/...  checkpoint
+#     /workspace/...    工作区
+#     /任意用户路径...
+#
+# 术语:
+#   builtin  = VM 内置标量运算 & 控制流 (不走 op-plat)
+#   exop     = extended-op — 各后端注册的张量算子 (走 op-plat 执行)
+#   heap 生命周期 (tensor.new/del/clone) 为 heap-plat 协议命令, 不属于 /func
+#
+# 版本: 4.0
+# 顶层保留: 4 (/func /usr /sys /metathread)
+# ============================================================================
+
+spec_version: "4.0"
+reserved_top_level: 4  # /func /usr /sys /metathread
+
+# ============================================================================
+# 保留命名空间
+# ============================================================================
+namespaces:
+  func:
+    value: "/func/"
+    doc: "函数定义"
+    children:
+      builtin:
+        value: "builtin/"
+        doc: "VM 内置 — 标量数学、字符串、布尔、控制流"
+        categories: [int, float, double, string, bool, ctrl]
+      exop:
+        value: "exop-"
+        doc: "extended-op — op-plat 后端注册的张量算子 (exop-cuda, exop-metal, exop-cpu)"
+
+  usr:
+    value: "/usr/"
+    doc: "用户空间"
+    children:
+      func:
+        value: "func/"
+        doc: "用户函数源码 (/usr/func/<name>/n)"
+
+  sys:
+    value: "/sys/"
+    doc: "系统内部 — 所有组件、IPC、配置"
+    children:
+      daemon:    { value: "daemon/",    doc: "守护进程注册" }
+      backend:   { value: "backend/",   doc: "后端算子能力注册" }
+      ipc:       { value: "ipc/",       doc: "进程间通信 (命令+通知队列)" }
+      config:    { value: "config",     doc: "全局配置" }
+      counter:   { value: "counter/",   doc: "自增计数器" }
+      heartbeat: { value: "heartbeat/", doc: "心跳" }
+
+  metathread:
+    value: "/metathread/"
+    doc: "元线程 (vthread) 运行时执行栈"
+
+# ============================================================================
+# 路径前缀 (模板变量)
+# ============================================================================
+prefixes:
+  func_builtin:
+    value: "/func/builtin/"
+    doc: "内置算子根"
+  func_exop:
+    value: "/func/exop-"
+    doc: "extended-op 后端根"
+  usr_func:
+    value: "/usr/func/"
+    doc: "用户函数源码根"
+  sys_daemon:
+    value: "/sys/daemon/"
+    doc: "守护进程根"
+  sys_backend:
+    value: "/sys/backend/"
+    doc: "后端能力注册根"
+  sys_ipc_cmd:
+    value: "/sys/ipc/cmd/"
+    doc: "命令队列根"
+  sys_ipc_notify:
+    value: "/sys/ipc/notify/"
+    doc: "通知队列根"
+  sys_counter:
+    value: "/sys/counter/"
+    doc: "计数器根"
+  sys_heartbeat:
+    value: "/sys/heartbeat/"
+    doc: "心跳根"
+  metathread:
+    value: "/metathread/"
+    doc: "元线程运行时根"
+
+# ============================================================================
+# Key 定义
+# ============================================================================
+keys:
+  # ═══ /func — 函数定义 ═══════════════════════════════════════
+  # ── /func/builtin/<category>/<op> — VM 内置 ──
+  - name: BuiltinOp
+    space: func
+    doc: "VM 内置算子 (标量运算、控制流)"
+    params:
+      - {name: category, type: string, doc: "分类: int/float/double/string/bool/ctrl"}
+      - {name: op, type: string, doc: "算子名"}
+    pattern: "{func_builtin}{category}/{op}"
+
+  # ── /func/exop-<backend>/<category>/<op> — extended-op 后端 ──
+  - name: ExopFunc
+    space: func
+    doc: "extended-op 后端算子 (op-plat 执行)"
+    params:
+      - {name: backend, type: string, doc: "后端: cuda/metal/cpu"}
+      - {name: category, type: string, doc: "分类: tensor/math/nn"}
+      - {name: op, type: string, doc: "算子名"}
+    pattern: "{func_exop}{backend}/{category}/{op}"
+
+  # ═══ /usr — 用户空间 ═══════════════════════════════════════
+  - name: UsrFunc
+    space: usr
+    doc: "用户函数签名"
+    params: [{name: name, type: string}]
+    pattern: "{usr_func}{name}"
+
+  - name: UsrFuncInst
+    space: usr
+    doc: "用户函数指令"
+    params: [{name: name, type: string}, {name: n, type: int}]
+    pattern: "{usr_func}{name}/{n}"
+
+  - name: UsrFuncBranch
+    space: usr
+    doc: "用户函数控制流分支"
+    params:
+      - {name: name, type: string}
+      - {name: n, type: int}
+      - {name: branch, type: string, doc: "then / else / body"}
+      - {name: m, type: int}
+    pattern: "{usr_func}{name}/{n}/{branch}/{m}"
+
+  # ═══ /sys — 系统内部 ═══════════════════════════════════════
+  # ── 守护进程 ──
+  - name: DaemonOp
+    space: sys
+    doc: "op-plat 进程注册"
+    params: [{name: instance, type: string}]
+    pattern: "{sys_daemon}op/{instance}"
+
+  - name: DaemonHeap
+    space: sys
+    doc: "heap-plat 进程注册"
+    params: [{name: instance, type: string}]
+    pattern: "{sys_daemon}heap/{instance}"
+
+  - name: DaemonVM
+    space: sys
+    doc: "VM 实例注册"
+    params: [{name: id, type: string}]
+    pattern: "{sys_daemon}vm/{id}"
+
+  # ── 后端能力注册 ──
+  - name: BackendList
+    space: sys
+    doc: "后端算子列表"
+    params: [{name: program, type: string}]
+    pattern: "{sys_backend}{program}/list"
+
+  - name: BackendOpMeta
+    space: sys
+    doc: "算子元数据 (dtype, max_shape, symbols, fusion_group)"
+    params: [{name: program, type: string}, {name: opname, type: string}]
+    pattern: "{sys_backend}{program}/ops/{opname}"
+
+  # ── IPC (组件内部通信) ──
+  - name: CmdOp
+    space: sys
+    doc: "op-plat 命令队列"
+    params: [{name: instance, type: string}]
+    pattern: "{sys_ipc_cmd}op/{instance}"
+
+  - name: CmdHeap
+    space: sys
+    doc: "heap-plat 命令队列"
+    params: [{name: program, type: string}, {name: device, type: string}]
+    pattern: "{sys_ipc_cmd}heap/{program}/{device}"
+
+  - name: NotifyVM
+    space: sys
+    doc: "VM 唤醒通知 (pysdk → VM)"
+    pattern: "{sys_ipc_notify}vm"
+
+  - name: NotifyDone
+    space: sys
+    doc: "操作完成通知 (op-plat / heap-plat → VM)"
+    params: [{name: vtid, type: string}]
+    pattern: "{sys_ipc_notify}done/{vtid}"
+
+  # ── 配置 & 计数器 & 心跳 ──
+  - name: SysConfig
+    space: sys
+    doc: "全局配置"
+    pattern: "/sys/config"
+
+  - name: VtidCounter
+    space: sys
+    doc: "vthread ID 自增计数器"
+    pattern: "{sys_counter}vtid"
+
+  - name: SysHeartbeat
+    space: sys
+    doc: "组件心跳"
+    params: [{name: id, type: string}]
+    pattern: "{sys_heartbeat}{id}"
+
+  # ═══ /metathread — 元线程运行时 ════════════════════════════
+  - name: Metathread
+    space: metathread
+    doc: "元线程自身状态 — value: {pc, status}"
+    params: [{name: vtid, type: string}]
+    pattern: "{metathread}{vtid}"
+
+  - name: MetathreadPrefix
+    space: metathread
+    doc: "元线程子树前缀 (SCAN)"
+    params: [{name: vtid, type: string}]
+    pattern: "{metathread}{vtid}/"
+
+  - name: MetathreadInstOp
+    space: metathread
+    doc: "指令操作码 — 二维坐标 [addr0, 0]"
+    params: [{name: vtid, type: string}, {name: addr0, type: string}]
+    pattern: "{metathread}{vtid}/[{addr0},0]"
+
+  - name: MetathreadInstRead
+    space: metathread
+    doc: "指令读参数 — 二维坐标 [addr0, -n]"
+    params: [{name: vtid, type: string}, {name: addr0, type: string}, {name: n, type: int}]
+    pattern: "{metathread}{vtid}/[{addr0},-{n}]"
+
+  - name: MetathreadInstWrite
+    space: metathread
+    doc: "指令写参数 — 二维坐标 [addr0, n]"
+    params: [{name: vtid, type: string}, {name: addr0, type: string}, {name: n, type: int}]
+    pattern: "{metathread}{vtid}/[{addr0},{n}]"
+
+  - name: MetathreadSlot
+    space: metathread
+    doc: "命名槽位 — 与指令坐标平级"
+    params: [{name: vtid, type: string}, {name: name, type: string}]
+    pattern: "{metathread}{vtid}/{name}"
+
+  - name: MetathreadSubstack
+    space: metathread
+    doc: "子栈根 — CALL 产生的子维度"
+    params: [{name: vtid, type: string}, {name: addr0, type: string}]
+    pattern: "{metathread}{vtid}/[{addr0},0]/"
+
+  # ═══ 通配模式 (SCAN) ════════════════════════════════════════
+  - name: MetathreadWildcard
+    pattern: "/metathread/*"
+    doc: "所有元线程通配"
+
+  - name: BackendListWildcard
+    pattern: "/sys/backend/*/list"
+    doc: "所有后端算子列表通配"
+
+  - name: DaemonWildcard
+    pattern: "/sys/daemon/*/*"
+    doc: "所有守护进程通配"
+
+# ============================================================================
+# 元线程状态枚举
+# ============================================================================
+enums:
+  - name: MetathreadStatus
+    doc: "元线程生命周期状态"
+    values:
+      - { name: Init,    value: "init",    doc: "已创建，待 VM 拾取" }
+      - { name: Running, value: "running", doc: "VM 正在调度执行" }
+      - { name: Wait,    value: "wait",    doc: "等待异步操作" }
+      - { name: Error,   value: "error",   doc: "执行出错" }
+      - { name: Done,    value: "done",    doc: "执行完毕，栈待 GC" }
+    terminal: [Error, Done]
+
+# ============================================================================
+# 常量
+# ============================================================================
+constants:
+  - { name: OpStatusOK,      value: "ok",           doc: "op-plat 完成 — 成功" }
+  - { name: OpStatusError,   value: "error",        doc: "op-plat 完成 — 失败" }
+  - { name: EventNewVthread, value: "new_vthread",  doc: "通知事件: 新元线程" }
+  - { name: Backends, type: list, list_value: ["op-metal","op-cuda","op-cpu"], doc: "支持的后端" }
+  - { name: DeviceGPU0,      value: "gpu0",         doc: "默认 GPU 设备" }
+  - { name: DeviceCPU,       value: "cpu",          doc: "CPU 设备" }
+  - { name: NodeDefault,     value: "n1",           doc: "默认节点" }
+  - { name: ShmPrefix,       value: "/deepx_t_",    doc: "tensor shm 前缀" }
+  - { name: EntryFunc,       value: "main",         doc: "默认入口函数名" }
+
+# ============================================================================
+# /func/builtin 分类 (VM 直接执行)
+# ============================================================================
+builtin_categories:
+  int:
+    doc: "整数运算"
+    ops: [add, sub, mul, div, mod, neg]
+  float:
+    doc: "单精度浮点"
+    ops: [add, sub, mul, div, neg]
+  double:
+    doc: "双精度浮点"
+    ops: [add, sub, mul, div, neg]
+  string:
+    doc: "字符串"
+    ops: [concat, split, compare, length, substr]
+  bool:
+    doc: "布尔"
+    ops: [and, or, not, xor]
+  ctrl:
+    doc: "控制流"
+    ops: [if, for, while, call, ret, break, continue]
+
+# ============================================================================
+# /func/exop-<backend> 分类 (op-plat 执行)
+# ============================================================================
+exop_categories:
+  tensor:
+    doc: "张量基础运算"
+    ops: [matmul, add, sub, mul, div, relu, gelu, sigmoid, tanh, softmax,
+          layernorm, batchnorm, transpose, reshape, concat, slice, gather]
+  math:
+    doc: "张量数学"
+    ops: [exp, log, sqrt, pow, abs, sign, ceil, floor, round]
+  nn:
+    doc: "神经网络"
+    ops: [conv2d, conv2d_transpose, maxpool2d, avgpool2d, dropout, embedding]
+
+# ============================================================================
+# 工具函数
+# ============================================================================
+utilities:
+  is_relative:
+    doc: "判断参数是否为相对路径 (./ 前缀)"
+    example: "./mm → true, /models/W → false"
+  resolve_relative:
+    doc: "将相对路径解析为绝对 metathread 路径"
+    example: "ResolveRelative('vt1', './mm') → /metathread/vt1/mm"
+  func_main_path:
+    doc: "默认入口函数路径"
+    value: "/usr/func/main"

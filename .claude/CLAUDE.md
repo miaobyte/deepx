@@ -86,6 +86,24 @@
 
 commit 前检查是否有文件应加入 .gitignore（构建产物、缓存、IDE 临时文件等）。
 
+## Redis Key 规范
+
+所有 Redis key 的**单一真源**是 `spec/keys.yaml`。修改 key 路径后必须运行：
+
+```
+make gen-keys
+```
+
+该命令调用 `tool/codegen/` 重新生成三语言 SDK：
+
+| 输出 | 语言 |
+|------|------|
+| `executor/vm/internal/keys/keys.go` | Go |
+| `executor/deepx-core/include/deepx/key_defs.h` | C++ |
+| `tool/dashboard/frontend/src/api/keys.ts` | TypeScript |
+
+业务代码中**禁止裸 Redis key 字符串**，必须通过上述 SDK 的函数构造。
+
 # 设计哲学
 
 为了追求架构最优，不在意开发成本，可以修改一切。宁为架构破整体，不因妥协留遗憾。

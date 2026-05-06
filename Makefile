@@ -87,6 +87,9 @@ help:
 	@echo "PIPELINE:"
 	@echo "  make pipeline           Full cycle: build → start → reset → stop"
 	@echo ""
+	@echo "CODEGEN:"
+	@echo "  make gen-keys           Generate Redis key SDKs from spec/keys.yaml"
+	@echo ""
 	@echo "UTILS:"
 	@echo "  make reset-redis        Reset Redis (FLUSHDB)"
 	@echo "  make clean              Remove build artifacts"
@@ -177,6 +180,19 @@ build-heap-cpu:
 	@echo "=== Building heap-cpu ($(CPU_PLAT)) ==="
 	bash $(HEAP_CPU_DIR)/build.sh
 	@echo "  → $(BIN_HEAP_CPU)         (生命周期管理器，对接 Redis)"
+
+# ═══════════════════════════════════════════════════════════════
+# Code Generation
+# ═══════════════════════════════════════════════════════════════
+
+CODEGEN_DIR     := tool/codegen
+
+gen-keys:
+	@echo "=== Generating Redis key SDKs from spec/keys.yaml ==="
+	cd $(CODEGEN_DIR) && go run . $(CURDIR)
+	@echo "  → executor/vm/internal/keys/keys.go"
+	@echo "  → executor/deepx-core/include/deepx/key_defs.h"
+	@echo "  → tool/dashboard/frontend/src/api/keys.ts"
 
 # ═══════════════════════════════════════════════════════════════
 # Test
