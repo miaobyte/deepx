@@ -155,7 +155,7 @@ func run(flags RunFlags) error {
 	// VM's builtin print reads /vthread/<vtid>/term to find the terminal
 	// name, then looks up /sys/term/<name>/stdout,stderr,stdin (hash keys).
 	// deepxctl registers writers at /sys/term/deepxctlrun/. The vthread's
-	// first instruction str.set("deepxctlrun") -> './term' (injected by VM
+	// first instruction string.set("deepxctlrun") -> './term' (injected by VM
 	// during vthread creation from /func/main) sets the term atomically.
 	termDir, err := setupTermWriters(rdb)
 	if err != nil {
