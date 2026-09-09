@@ -1,0 +1,43 @@
+// deepx 前端 nn 模块 —— 对标 pytorch torch.nn.functional。
+// 每个 rwfunc 只调用「厂商中立的前端抽象算子」deepx·{op}（无 author、无实现，见
+// kvlang spec 06-编译器语义/02-前端算子与后端算子）。抽象算子由扩展编译器绑定到具体后端
+// （deepx/miaobyte·、deepx/cblas·）后交 runtime 纯解释；复合模块则由编译器分解/融合。
+// 形状约束用轴量词写在 def langtype 里（. 恰一轴任意长；+ 一轴或多轴；[.,.] 恰二维）；
+// dtype 不用 any——按铁律用 | 联合具体 kind（浮点张量 float32|float64；kvlang 无 bfloat16/float16
+// kind，其位宽由后端在实现层承担）。每个并集原子各带自身形状，故 [+]float32|[+]float64 需重复形状。
+// 跨算子的轴相等由算子语义在 runtime 承担。
+lib deepx/nn {
+
+	// nn.Linear(无 bias)：x 形状 [...,in]，weight 形状 [out,in]，y = x @ weightᵀ。
+	rwfunc linear(x:[+]float32|[+]float64, weight:[.,.]float32|[.,.]float64) -> (y:[+]float32|[+]float64) {
+		perm:[]int64 = [1, 0]
+		deepx·transpose(weight, perm) -> wT
+		deepx·matmul(x, wT) -> y
+	}
+
+	// nn.Linear(有 bias)：y = x @ weightᵀ + bias，bias 形状 [out]。
+	rwfunc linear_bias(x:[+]float32|[+]float64, weight:[.,.]float32|[.,.]float64, bias:[.]float32|[.]float64) -> (y:[+]float32|[+]float64) {
+		deepx/nn·linear(x, weight) -> xw
+		deepx·add(xw, bias) -> y
+	}
+
+	// nn.Embedding：按 ids 取 weight 的行，ids 为整数索引 ndarray，weight 形状 [vocab,dim]。
+	rwfunc embedding(ids:[+]int32|[+]int64, weight:[.,.]float32|[.,.]float64) -> (y:[+]float32|[+]float64) {
+		deepx·embedding(ids, weight) -> y
+	}
+
+	// nn.SiLU：silu(x) = x * sigmoid(x)，逐元素浮点激活。
+	rwfunc silu(x:[+]float32|[+]float64) -> (y:[+]float32|[+]float64) {
+		deepx·silu(x) -> y
+	}
+
+	// Qwen3RMSNorm：y = x * rsqrt(mean(x²,last)+eps) * weight，x 形状 [...,dim]，weight 形状 [dim]。
+	rwfunc rmsnorm(x:[+]float32|[+]float64, weight:[.]float32|[.]float64, eps:float64) -> (y:[+]float32|[+]float64) {
+		deepx·rmsnorm(x, weight, eps) -> y
+	}
+
+	// F.softmax(x, dim=last)：x 至少一维。
+	rwfunc softmax(x:[+]float32|[+]float64) -> (y:[+]float32|[+]float64) {
+		deepx·softmax(x) -> y
+	}
+}

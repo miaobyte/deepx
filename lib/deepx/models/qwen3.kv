@@ -1,0 +1,48 @@
+// Qwen3 前端表示 —— 对标 transformers.models.qwen3 的模块树（Qwen3MLP / Qwen3Attention /
+// Qwen3DecoderLayer / Qwen3Model）。模块为 deepx/models/qwen3 包下的 rwfunc，逐层调用
+// deepx/nn 模块与前端抽象算子 deepx·{op}；权重不内联，以 /model/<name>/ 全局变量按 pytorch
+// state_dict 的点分名寻址（如 /model/Qwen3-0.6B/model.layers.0.self_attn.q_proj.weight）。
+// 高层算子（rope/sdpa/repeat_kv）作为稳定前端算子面，后端由计算引擎兑现或编译器分解。
+lib deepx/models/qwen3 {
+
+	// Qwen3MLP：SwiGLU —— down( silu(gate(x)) * up(x) )。权重均为 [out,in] 二维浮点。
+	rwfunc mlp(x:[+]float32|[+]float64, gate_w:[.,.]float32|[.,.]float64, up_w:[.,.]float32|[.,.]float64, down_w:[.,.]float32|[.,.]float64) -> (y:[+]float32|[+]float64) {
+		deepx/nn·linear(x, gate_w) -> g
+		deepx/nn·silu(g) -> ga
+		deepx/nn·linear(x, up_w) -> u
+		deepx·mul(ga, u) -> gu
+		deepx/nn·linear(gu, down_w) -> y
+	}
+
+	// Qwen3Attention：GQA + 逐头 RMSNorm(q_norm/k_norm 作用于 head_dim) + RoPE + 因果 SDPA。
+	// n_heads/n_kv_heads/head_dim 为结构常量；pos 为位置索引，theta 为 RoPE 底数，eps 为 norm epsilon。
+	rwfunc attention(x:[+]float32|[+]float64, q_w:[.,.]float32|[.,.]float64, k_w:[.,.]float32|[.,.]float64, v_w:[.,.]float32|[.,.]float64, o_w:[.,.]float32|[.,.]float64,
+	                 q_norm_w:[.]float32|[.]float64, k_norm_w:[.]float32|[.]float64,
+	                 pos:[+]int32|[+]int64, n_heads:int64, n_kv_heads:int64, head_dim:int64,
+	                 theta:float64, eps:float64) -> (y:[+]float32|[+]float64) {
+		deepx/nn·linear(x, q_w) -> q0
+		deepx/nn·linear(x, k_w) -> k0
+		deepx/nn·linear(x, v_w) -> v
+		deepx·rmsnorm(q0, q_norm_w, eps) -> q1
+		deepx·rmsnorm(k0, k_norm_w, eps) -> k1
+		deepx·rope(q1, pos, head_dim, theta) -> q
+		deepx·rope(k1, pos, head_dim, theta) -> k
+		deepx·sdpa(q, k, v, n_heads, n_kv_heads, head_dim) -> ctx
+		deepx/nn·linear(ctx, o_w) -> y
+	}
+
+	// Qwen3DecoderLayer：pre-norm 残差 —— h=x+attn(ln1(x))；out=h+mlp(ln2(h))。
+	rwfunc decoder_layer(x:[+]float32|[+]float64,
+	                     in_ln_w:[.]float32|[.]float64, post_ln_w:[.]float32|[.]float64,
+	                     q_w:[.,.]float32|[.,.]float64, k_w:[.,.]float32|[.,.]float64, v_w:[.,.]float32|[.,.]float64, o_w:[.,.]float32|[.,.]float64, q_norm_w:[.]float32|[.]float64, k_norm_w:[.]float32|[.]float64,
+	                     gate_w:[.,.]float32|[.,.]float64, up_w:[.,.]float32|[.,.]float64, down_w:[.,.]float32|[.,.]float64,
+	                     pos:[+]int32|[+]int64, n_heads:int64, n_kv_heads:int64, head_dim:int64,
+	                     theta:float64, eps:float64) -> (y:[+]float32|[+]float64) {
+		deepx·rmsnorm(x, in_ln_w, eps) -> xn
+		deepx/models/qwen3·attention(xn, q_w, k_w, v_w, o_w, q_norm_w, k_norm_w, pos, n_heads, n_kv_heads, head_dim, theta, eps) -> a
+		deepx·add(x, a) -> h
+		deepx·rmsnorm(h, post_ln_w, eps) -> hn
+		deepx/models/qwen3·mlp(hn, gate_w, up_w, down_w) -> m
+		deepx·add(h, m) -> y
+	}
+}
