@@ -45,4 +45,69 @@ lib deepx/models/qwen3 {
 		deepx/models/qwen3·mlp(hn, gate_w, up_w, down_w) -> m
 		deepx·add(h, m) -> y
 	}
+
+	// Qwen3ForCausalLM.forward：embed → n_layers 层 decoder → final RMSNorm → lm_head。
+	// 权重不作参数，按 root 全局根 + pytorch state_dict 点分名动态拼路径经 kv·get 取值
+	// （root 如 "/model/Qwen3-0.6B"；layer i 前缀 "<root>/model.layers.<i>."）。
+	// ids 为 token 序列 [seq]，pos 为位置 id [seq]（RoPE 用）；返回 logits [seq,vocab]。
+	rwfunc model(root:[]char/utf32, ids:[+]int32|[+]int64, pos:[+]int32|[+]int64,
+	             n_layers:int64, n_heads:int64, n_kv_heads:int64, head_dim:int64,
+	             theta:float64, eps:float64) -> (logits:[+]float32|[+]float64) {
+		kv·get(string·concat(root, "/model.embed_tokens.weight")) -> embed_w
+		deepx/nn·embedding(ids, embed_w) -> h
+		i = 0
+		while (i < n_layers) {
+			string·concat(root, "/model.layers.") -> pa
+			string·concat(pa, string·formatint(i, 10)) -> pb
+			string·concat(pb, ".") -> lp
+			kv·get(string·concat(lp, "input_layernorm.weight")) -> in_ln_w
+			kv·get(string·concat(lp, "post_attention_layernorm.weight")) -> post_ln_w
+			kv·get(string·concat(lp, "self_attn.q_proj.weight")) -> q_w
+			kv·get(string·concat(lp, "self_attn.k_proj.weight")) -> k_w
+			kv·get(string·concat(lp, "self_attn.v_proj.weight")) -> v_w
+			kv·get(string·concat(lp, "self_attn.o_proj.weight")) -> o_w
+			kv·get(string·concat(lp, "self_attn.q_norm.weight")) -> q_norm_w
+			kv·get(string·concat(lp, "self_attn.k_norm.weight")) -> k_norm_w
+			kv·get(string·concat(lp, "mlp.gate_proj.weight")) -> gate_w
+			kv·get(string·concat(lp, "mlp.up_proj.weight")) -> up_w
+			kv·get(string·concat(lp, "mlp.down_proj.weight")) -> down_w
+			deepx/models/qwen3·decoder_layer(h, in_ln_w, post_ln_w, q_w, k_w, v_w, o_w, q_norm_w, k_norm_w, gate_w, up_w, down_w, pos, n_heads, n_kv_heads, head_dim, theta, eps) -> h
+			i = i + 1
+		}
+		kv·get(string·concat(root, "/model.norm.weight")) -> norm_w
+		deepx·rmsnorm(h, norm_w, eps) -> hn
+		kv·get(string·concat(root, "/lm_head.weight")) -> lm_head_w
+		deepx/nn·linear(hn, lm_head_w) -> logits
+	}
+
+	// 贪心自回归 generate：首轮为 prefill（对整段 prompt 前向），其后每轮为 decode step。
+	// 无 KV cache 的前端表示——每步对增长序列整段重算；KV cache 是后端/编译器的优化，不改本表示。
+	// 每步取 logits 末位置的 argmax 作下一 token，追加回序列，共生成 max_new 个。
+	rwfunc generate(root:[]char/utf32, prompt:[+]int64, max_new:int64,
+	                n_layers:int64, n_heads:int64, n_kv_heads:int64, head_dim:int64,
+	                theta:float64, eps:float64) -> (out:[+]int64) {
+		out = prompt
+		pos:[]int64 = [0]
+		n0 = ndarray·numel(prompt)
+		j = 1
+		while (j < n0) {
+			array·append(pos, j) -> pos
+			array·compact(pos) -> pos
+			j = j + 1
+		}
+		vocab_axis:[]int64 = [1]
+		step = 0
+		while (step < max_new) {
+			deepx/models/qwen3·model(root, out, pos, n_layers, n_heads, n_kv_heads, head_dim, theta, eps) -> logits
+			deepx·argmax(logits, vocab_axis, false) -> toks
+			n = ndarray·numel(out)
+			idx = n - 1
+			xv·at(toks, idx) -> next
+			array·append(out, next) -> out
+			array·compact(out) -> out
+			array·append(pos, n) -> pos
+			array·compact(pos) -> pos
+			step = step + 1
+		}
+	}
 }
